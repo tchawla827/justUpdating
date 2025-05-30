@@ -20,6 +20,9 @@ if platform.system().lower() == "darwin":
     ssl._create_default_https_context = ssl._create_unverified_context
 
 
+# ───────────────────────────────────────────────────────────────
+# FFMPEG helpers
+# ───────────────────────────────────────────────────────────────
 def run_ffmpeg(args: List[str]) -> bool:
     commands = [
         "ffmpeg",
@@ -60,7 +63,43 @@ def detect_fps(target_path: str) -> float:
     return 30.0
 
 
+# ───────────────────────────────────────────────────────────────
+# Frame-extraction cache helpers
+# ───────────────────────────────────────────────────────────────
+def _frames_exist(target_path: str) -> bool:
+    """
+    Return True if temp/<video-name> already contains at least one
+    extracted PNG frame.
+    """
+    temp_directory_path = get_temp_directory_path(target_path)
+    return os.path.isdir(temp_directory_path) and any(
+        fname.lower().endswith(".png") for fname in os.listdir(temp_directory_path)
+    )
+
+
+def needs_frame_extraction(target_path: str) -> bool:
+    """
+    Determine whether we need to (re)run ffmpeg to explode the video.
+    """
+    if modules.globals.keep_frames:
+        return not _frames_exist(target_path)
+    return not _frames_exist(target_path)
+
+
+# ───────────────────────────────────────────────────────────────
+# Core I/O operations
+# ───────────────────────────────────────────────────────────────
 def extract_frames(target_path: str) -> None:
+    """
+    Idempotent frame extraction – skips work when frames are already cached.
+    """
+    if not needs_frame_extraction(target_path):
+        print(
+            f"[UTIL] Skipping frame extraction – cached frames found for "
+            f"'{os.path.basename(target_path)}'"
+        )
+        return
+
     temp_directory_path = get_temp_directory_path(target_path)
     run_ffmpeg(
         [
@@ -118,6 +157,9 @@ def restore_audio(target_path: str, output_path: str) -> None:
         move_temp(target_path, output_path)
 
 
+# ───────────────────────────────────────────────────────────────
+# Path & temp helpers
+# ───────────────────────────────────────────────────────────────
 def get_temp_frame_paths(target_path: str) -> List[str]:
     temp_directory_path = get_temp_directory_path(target_path)
     return glob.glob((os.path.join(glob.escape(temp_directory_path), "*.png")))
@@ -167,6 +209,9 @@ def clean_temp(target_path: str) -> None:
         os.rmdir(parent_directory_path)
 
 
+# ───────────────────────────────────────────────────────────────
+# Misc. utilities
+# ───────────────────────────────────────────────────────────────
 def has_image_extension(image_path: str) -> bool:
     return image_path.lower().endswith(("png", "jpg", "jpeg"))
 
@@ -202,7 +247,13 @@ def conditional_download(download_directory_path: str, urls: List[str]) -> None:
                 unit_scale=True,
                 unit_divisor=1024,
             ) as progress:
-                urllib.request.urlretrieve(url, download_file_path, reporthook=lambda count, block_size, total_size: progress.update(block_size))  # type: ignore[attr-defined]
+                urllib.request.urlretrieve(
+                    url,
+                    download_file_path,
+                    reporthook=lambda count, block_size, total_size: progress.update(
+                        block_size
+                    ),
+                )  # type: ignore[attr-defined]
 
 
 def resolve_relative_path(path: str) -> str:
