@@ -183,6 +183,7 @@ def get_unique_faces_from_target_video() -> None:
     if cache_path.exists():
         with open(cache_path, "rb") as f:
             modules.globals.source_target_map = _deserialise_map(pickle.load(f))
+        default_target_face()      # ← rebuilds each map['target']['cv2'] thumbnail
         print("[ANALYSER] Re-used cached face-embeddings")
         simplify_maps()
         return
@@ -228,7 +229,11 @@ def get_unique_faces_from_target_video() -> None:
     try:
         cache_dir.mkdir(parents=True, exist_ok=True)
         with open(cache_path, "wb") as f:
-            pickle.dump(_serialise_map(modules.globals.source_target_map), f, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(
+                _serialise_map(modules.globals.source_target_map),
+                f,
+                protocol=pickle.HIGHEST_PROTOCOL,
+            )
         print(f"[ANALYSER] Cached embeddings → {cache_path}")
     except Exception as e:
         print(f"[ANALYSER] WARNING: could not write cache ({e})")
