@@ -26,6 +26,14 @@ FACE_ANALYSER = None
 CACHE_FILE = "embeddings.pkl"
 
 
+def _get_cache_path(target_path: str) -> Path:
+    """Return the persistent cache path for a given target video."""
+    target_dir = os.path.dirname(target_path)
+    target_name = Path(target_path).stem
+    cache_dir = Path(target_dir) / ".dlc_cache"
+    return cache_dir / f"{target_name}_{CACHE_FILE}"
+
+
 def get_face_analyser() -> Any:
     global FACE_ANALYSER
     if FACE_ANALYSER is None:
@@ -176,11 +184,14 @@ def _deserialise_map(raw: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def get_unique_faces_from_target_video() -> None:
-    cache_dir = Path(get_temp_directory_path(modules.globals.target_path))
-    cache_path = cache_dir / CACHE_FILE
+    cache_path = _get_cache_path(modules.globals.target_path)
+    cache_dir = cache_path.parent
 
     # 1) Attempt to reuse cache
     if cache_path.exists():
+        clean_temp(modules.globals.target_path)
+        create_temp(modules.globals.target_path)
+        extract_frames(modules.globals.target_path)
         with open(cache_path, "rb") as f:
             modules.globals.source_target_map = _deserialise_map(pickle.load(f))
         default_target_face()      # ← rebuilds each map['target']['cv2'] thumbnail
