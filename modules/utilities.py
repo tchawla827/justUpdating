@@ -77,12 +77,23 @@ def _frames_exist(target_path: str) -> bool:
     )
 
 
+def _original_frames_exist(target_path: str) -> bool:
+    """Return True if a copy of the original frames exists."""
+    temp_directory_path = get_temp_directory_path(target_path)
+    orig_path = os.path.join(temp_directory_path, "originals")
+    return os.path.isdir(orig_path) and any(
+        fname.lower().endswith(".png") for fname in os.listdir(orig_path)
+    )
+
+
 def needs_frame_extraction(target_path: str) -> bool:
     """
     Determine whether we need to (re)run ffmpeg to explode the video.
     """
     if modules.globals.keep_frames:
-        return not _frames_exist(target_path)
+        # If keeping frames, extraction is only required when we do not have
+        # a preserved copy of the originals.
+        return not _original_frames_exist(target_path)
     return not _frames_exist(target_path)
 
 
@@ -93,14 +104,23 @@ def extract_frames(target_path: str) -> None:
     """
     Idempotent frame extraction – skips work when frames are already cached.
     """
+    temp_directory_path = get_temp_directory_path(target_path)
+    orig_directory_path = os.path.join(temp_directory_path, "originals")
+
     if not needs_frame_extraction(target_path):
         print(
             f"[UTIL] Skipping frame extraction – cached frames found for "
             f"'{os.path.basename(target_path)}'"
         )
+        # restore pristine frames if we kept them
+        if modules.globals.keep_frames and os.path.isdir(orig_directory_path):
+            for f in glob.glob(os.path.join(orig_directory_path, "*.png")):
+                shutil.copy2(
+                    f, os.path.join(temp_directory_path, os.path.basename(f))
+                )
         return
 
-    temp_directory_path = get_temp_directory_path(target_path)
+    # fresh extraction
     run_ffmpeg(
         [
             "-i",
@@ -110,6 +130,11 @@ def extract_frames(target_path: str) -> None:
             os.path.join(temp_directory_path, "%04d.png"),
         ]
     )
+
+    if modules.globals.keep_frames:
+        Path(orig_directory_path).mkdir(parents=True, exist_ok=True)
+        for f in glob.glob(os.path.join(temp_directory_path, "*.png")):
+            shutil.copy2(f, os.path.join(orig_directory_path, os.path.basename(f)))
 
 
 def create_video(target_path: str, fps: float = 30.0) -> None:

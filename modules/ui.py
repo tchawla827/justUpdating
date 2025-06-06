@@ -509,13 +509,17 @@ def update_popup_source(
 
     if "source" in map[button_num]:
         map[button_num].pop("source")
-        source_label_dict[button_num].destroy()
-        del source_label_dict[button_num]
+        if button_num in source_label_dict:
+            source_label_dict[button_num].destroy()
+            del source_label_dict[button_num]
 
     if source_path == "":
         return map
     else:
         cv2_img = cv2.imread(source_path)
+        if cv2_img is None:
+            update_pop_status("Invalid image!")
+            return map
         face = get_one_face(cv2_img)
 
         if face:
@@ -1124,13 +1128,17 @@ def update_webcam_source(
 
     if "source" in map[button_num]:
         map[button_num].pop("source")
-        source_label_dict_live[button_num].destroy()
-        del source_label_dict_live[button_num]
+        if button_num in source_label_dict_live:
+            source_label_dict_live[button_num].destroy()
+            del source_label_dict_live[button_num]
 
     if source_path == "":
         return map
     else:
         cv2_img = cv2.imread(source_path)
+        if cv2_img is None:
+            update_pop_live_status("Invalid image!")
+            return map
         face = get_one_face(cv2_img)
 
         if face:
@@ -1176,13 +1184,17 @@ def update_webcam_target(
 
     if "target" in map[button_num]:
         map[button_num].pop("target")
-        target_label_dict_live[button_num].destroy()
-        del target_label_dict_live[button_num]
+        if button_num in target_label_dict_live:
+            target_label_dict_live[button_num].destroy()
+            del target_label_dict_live[button_num]
 
     if target_path == "":
         return map
     else:
         cv2_img = cv2.imread(target_path)
+        if cv2_img is None:
+            update_pop_live_status("Invalid image!")
+            return map
         face = get_one_face(cv2_img)
 
         if face:
